@@ -1,7 +1,10 @@
+// ignore_for_file: unnecessary_null_in_if_null_operators
+
+import 'package:clever/page/connect/connect.dart';
+import 'package:clever/page/feed/feed.dart';
 import 'package:clever/utils/enum/enum.dart';
 import 'package:clever/utils/state/app_state.dart';
 import 'package:clever/page/home.dart';
-import 'package:clever/page/login.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -12,6 +15,8 @@ class CloudFirestore extends AppState {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   ConfirmationResult confirmationResult;
   User user;
+  CollectionReference refU = FirebaseFirestore.instance.collection("users");
+  CollectionReference refF = FirebaseFirestore.instance.collection("files");
 
   signInWithPhoneNumberWeb(phoneNumber) async {
     confirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(
@@ -20,10 +25,32 @@ class CloudFirestore extends AppState {
   }
 
   signInWithPhoneNumberWebConfirm(code, context) async {
-    UserCredential userCredential = await confirmationResult.confirm(code);
-    user = userCredential.user;
-    authStatus = AuthStatus.LOGGED_IN;
-    Navigator.of(context).pushReplacementNamed(Home.routeName);
+    await Firebase.initializeApp();
+    UserCredential firebaseResult = await confirmationResult.confirm(code);
+    user = firebaseResult.user;
+    if (firebaseResult.additionalUserInfo.isNewUser) {
+      authStatus = AuthStatus.REGISTER_NOW_USER;
+      Navigator.of(context).pushReplacementNamed(Connect.routeName);
+    } else {
+      String uid = FirebaseAuth.instance.currentUser.uid;
+      refU.doc(uid).get().then((value) {
+        if (value.data() == null) {
+          authStatus = AuthStatus.REGISTER_NOW_USER;
+          Navigator.of(context).pushReplacementNamed(Connect.routeName);
+        } else {
+          String time = DateTime.now().toUtc().toString();
+
+          refU
+              .doc(uid)
+              .collection('info')
+              .doc('info_login')
+              .update({'last_entrance': time}).whenComplete(() {
+            authStatus = AuthStatus.LOGGED_IN;
+            Navigator.of(context).pushReplacementNamed(Feed.routeName);
+          });
+        }
+      });
+    }
   }
 
   Future<User> getCurrentUser({context}) async {
@@ -38,8 +65,13 @@ class CloudFirestore extends AppState {
             .get()
             .then((value) {
           if (value.data() != null) {
-            authStatus = AuthStatus.LOGGED_IN;
-            Navigator.of(context).pushReplacementNamed(Home.routeName);
+            if (value.data()['name'] != '') {
+              authStatus = AuthStatus.LOGGED_IN;
+              Navigator.of(context).pushReplacementNamed(Home.routeName);
+            } else {
+              authStatus = AuthStatus.REGISTER_NOW_USER;
+              Navigator.of(context).pushReplacementNamed(Connect.routeName);
+            }
           } else {
             authStatus = AuthStatus.REGISTER_NOW_USER;
             Navigator.of(context).pushReplacementNamed(Connect.routeName);
@@ -52,32 +84,57 @@ class CloudFirestore extends AppState {
       return user;
     } catch (error) {
       loading = false;
-      debugPrint(user.toString());
-      debugPrint("ERROR");
-      debugPrint(error.toString());
       authStatus = AuthStatus.NOT_LOGGED_IN;
       return null;
     }
   }
 
-  Future<void> createNewUser(
-    BuildContext context,
-    String name,
-    String surname, {
-    String downloadURI,
-  }) async {
+  Future<void> createNewUser(BuildContext context, String name,
+      {String photo}) async {
     await Firebase.initializeApp();
     String uid = FirebaseAuth.instance.currentUser.uid;
-    var phone = FirebaseAuth.instance.currentUser.phoneNumber;
-    CollectionReference ref = FirebaseFirestore.instance.collection("users");
-    ref.doc(uid).set({
-      "name": name,
-      "surname": surname,
-      "uriImage": downloadURI,
-      "phoneNumber": phone,
-      "uidUser": uid,
-    }).whenComplete(
-        () => Navigator.of(context).pushReplacementNamed(Home.routeName));
+    String phone = FirebaseAuth.instance.currentUser.phoneNumber;
+    String time = DateTime.now().toUtc().toString();
+
+    refU.doc(uid).set({
+      'name': name ?? null,
+      'username': uid,
+      'photo': photo ?? null,
+      'phone': phone,
+      'uid': uid,
+    }).whenComplete(() =>
+        refU.doc(uid).collection('data').doc('data_login').set({
+          'last_entrance': time,
+          'last_ip': null,
+          'registered': time,
+        }).whenComplete(
+            () => Navigator.of(context).pushReplacementNamed(Feed.routeName)));
+    return;
+  }
+
+  Future<void> createNewPost(BuildContext context, String title, String photo,
+      String uidFile, String path, String uidCategory,
+      {String description}) async {
+    await Firebase.initializeApp();
+    String uid = FirebaseAuth.instance.currentUser.uid;
+    String createdDate = DateTime.now().toUtc().toString();
+
+    refF.doc(uidFile).set({
+      'title': title,
+      'uidFile': uidFile,
+      'description': description ?? null,
+      'createdDate': createdDate,
+      'author': uid,
+      'public': false,
+      'state': 'review',
+      'animated': true,
+      'url': {'absolute': photo, 'relative': path},
+    }).whenComplete(() => refU.doc(uid).collection('files').doc(uidFile).set({
+          'latest_edit_date': null,
+          'uidFile': uidFile,
+        }).whenComplete(
+            () => Navigator.of(context).pushReplacementNamed(Feed.routeName)));
+    ;
     return;
   }
 }

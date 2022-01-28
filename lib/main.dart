@@ -1,6 +1,7 @@
-import 'package:clever/page/comfirm.dart';
+import 'package:clever/page/connect/connect.dart';
+import 'package:clever/page/feed/feed.dart';
 import 'package:clever/page/home.dart';
-import 'package:clever/page/login.dart';
+import 'package:clever/page/connect/login/login.dart';
 import 'package:clever/page/splash.dart';
 import 'package:clever/utils/database/database.dart';
 import 'package:clever/utils/state/app_state.dart';
@@ -29,14 +30,15 @@ class MyApp extends StatelessWidget {
         ],
         child: MaterialApp(
           theme: ThemeData(
-            fontFamily: 'ReadexPro',
+            fontFamily: 'DMSans',
           ),
           initialRoute: SplashPage.routeName,
           routes: {
             SplashPage.routeName: (context) => const SplashPage(),
             Home.routeName: (context) => const Home(),
+            Feed.routeName: (context) => const Feed(),
+            Login.routeName: (context) => const Login(),
             Connect.routeName: (context) => const Connect(),
-            Comfrim.routeName: (context) => const Comfrim(),
           },
           title: 'Case Clever',
         ));

@@ -25,8 +25,11 @@ dependencies:
   pin_view: ^1.0.1
 
   cupertino_icons: ^1.0.2
-  image_picker_web: ^2.0.3+1
-  mime_type: ^1.0.0
+  cached_network_image: ^3.2.0
+  flutter_cache_manager: ^3.3.0
+  file_picker: ^4.3.0
+  flutter_dropzone: ^3.0.5
+  
 
 dev_dependencies:
   flutter_test:
@@ -40,8 +43,15 @@ flutter:
 
   assets:
     - assets/fonts/
+    - assets/img/
 
   fonts:
     - family: ReadexPro
       fonts:
         - asset: assets/fonts/ReadexPro-VariableFont_wght.ttf
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/DMSans-Regular.ttf
+          weight: 400
