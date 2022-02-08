@@ -1,4 +1,4 @@
-// ignore_for_file: unused_local_variable
+// ignore_for_file: unused_local_variable, non_constant_identifier_names, avoid_function_literals_in_foreach_calls, avoid_print
 
 import 'package:clever/utils/mdls/app/cat.dart';
 import 'package:flutter/material.dart';

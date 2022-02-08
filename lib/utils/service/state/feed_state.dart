@@ -1,7 +1,7 @@
 import 'package:clever/utils/mdls/app/app.dart';
 import 'package:clever/utils/mdls/app/cat.dart';
 import 'package:clever/utils/mdls/user/user.dart';
-import 'package:clever/utils/state/app_state.dart';
+import 'package:clever/utils/service/state/app_state.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -9,6 +9,7 @@ class FeedState extends AppState {
   final String uidUser;
   final String uidApp;
   final String uidCat;
+
   FeedState({
     this.uidUser,
     this.uidApp,
@@ -21,7 +22,6 @@ class FeedState extends AppState {
       FirebaseFirestore.instance.collection('users');
   final CollectionReference categoriesCall =
       FirebaseFirestore.instance.collection('categories');
-  String uidAU = FirebaseAuth.instance.currentUser.uid;
 
   // Loading an authorized user
   UserData getAU(DocumentSnapshot snapshot) {
@@ -31,10 +31,6 @@ class FeedState extends AppState {
         name: snapshot.get('name'),
         photo: snapshot.get('photo'),
         phone: snapshot.get('phone'));
-  }
-
-  Stream<UserData> get authUser {
-    return usersCall.doc(uidAU).snapshots().map(getAU);
   }
 
   Stream<UserData> get getUser {
@@ -71,6 +67,19 @@ class FeedState extends AppState {
     return categoriesCall.snapshots().map(loadCategories);
   }
 
+  // Loading one document from the database
+  Cat loadCat(DocumentSnapshot snapshot) {
+    return Cat(
+      enabled: snapshot.get('enabled'),
+      name: snapshot.get('name'),
+      uid: snapshot.get('uid'),
+    );
+  }
+
+  Stream<Cat> get getCat {
+    return categoriesCall.doc(uidCat).snapshots().map(loadCat);
+  }
+
   // Loading all documents from the database
   List<Application> loadApps(QuerySnapshot snapshot) {
     return snapshot.docs.map((doc) {
@@ -83,6 +92,7 @@ class FeedState extends AppState {
         public: doc.get('public'),
         state: doc.get('state'),
         author: doc.get('author'),
+        categories: doc.get('categories'),
         url: doc.get('url'),
       );
     }).toList();
@@ -97,17 +107,49 @@ class FeedState extends AppState {
         .map(loadApps);
   }
 
+  Stream<List<Application>> get getAllAppsFilter {
+    return filesCall
+        .where('categories', isEqualTo: [uidCat])
+        .where('public', isEqualTo: false)
+        .where('state', isEqualTo: 'review')
+        .orderBy('createdDate', descending: true)
+        .snapshots()
+        .map(loadApps);
+  }
+
+  Stream<List<Application>> get getAllAppsUsers {
+    return filesCall
+        .where('author', isEqualTo: uidUser)
+        .where('public', isEqualTo: false)
+        .where('state', isEqualTo: 'review')
+        .orderBy('createdDate', descending: true)
+        .snapshots()
+        .map(loadApps);
+  }
+
+  Stream<List<Application>> get getAllAppsUsersFilter {
+    return filesCall
+        .where('categories', isEqualTo: [uidCat])
+        .where('author', isEqualTo: uidUser)
+        .where('public', isEqualTo: false)
+        .where('state', isEqualTo: 'review')
+        .orderBy('createdDate', descending: true)
+        .snapshots()
+        .map(loadApps);
+  }
+
   // Loading one document from the database
   Application loadApp(DocumentSnapshot snapshot) {
     return Application(
       animated: snapshot.get('animated') ?? false,
-      createdDate: snapshot.get('created_date'),
-      title: snapshot.get('title'),
-      uidFile: snapshot.get('uidFile'),
+      author: snapshot.get('author'),
+      categories: snapshot.get('categories'),
+      createdDate: snapshot.get('createdDate'),
       description: snapshot.get('description'),
       public: snapshot.get('public'),
       state: snapshot.get('state') ?? 'archived',
-      author: snapshot.get('author'),
+      title: snapshot.get('title'),
+      uidFile: snapshot.get('uidFile'),
       url: snapshot.get('url'),
     );
   }

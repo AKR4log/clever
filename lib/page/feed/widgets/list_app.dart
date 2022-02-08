@@ -26,10 +26,9 @@ class _ListAppState extends State<ListApp> {
             physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics()),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                childAspectRatio: 0.7,
-                crossAxisSpacing: 1,
-                mainAxisSpacing: 1),
+              crossAxisCount: 4,
+            ),
+            primary: true,
             itemCount: app.length,
             itemBuilder: (context, index) {
               return PreviewApp(application: app[index]);

@@ -1,28 +1,30 @@
-// ignore_for_file: non_constant_identifier_names, missing_return, unused_local_variable
+// ignore_for_file: unused_local_variable
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:clever/page/feed/widgets/list_app.dart';
+import 'package:clever/page/feed/feed.dart';
 import 'package:clever/utils/mdls/app/app.dart';
+import 'package:clever/utils/mdls/user/user.dart';
 import 'package:clever/utils/service/database/database.dart';
 import 'package:clever/utils/service/state/feed_state.dart';
 import 'package:clever/utils/widget/appbar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_dropzone/flutter_dropzone.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 
-class Feed extends StatefulWidget {
-  static var routeName = '/feed';
-  const Feed({Key key}) : super(key: key);
+class Product extends StatefulWidget {
+  static var routeName = '/product';
+  const Product({Key key}) : super(key: key);
 
   @override
-  _FeedState createState() => _FeedState();
+  State<Product> createState() => _ProductState();
 }
 
-class _FeedState extends State<Feed> {
+class _ProductState extends State<Product> {
   TextEditingController controllerName = TextEditingController();
   TextEditingController controllerDesc = TextEditingController();
   TextEditingController controllerSearch = TextEditingController();
@@ -39,7 +41,10 @@ class _FeedState extends State<Feed> {
       upload = false,
       uploadComplite = false,
       errorUploadMime = false,
-      errorName = false;
+      errorName = false,
+      liked = false,
+      follow = false,
+      listen = false;
   firebase_storage.FirebaseStorage fs =
       firebase_storage.FirebaseStorage.instance;
 
@@ -683,11 +688,11 @@ class _FeedState extends State<Feed> {
 
   @override
   Widget build(BuildContext context) {
+    Map data = ModalRoute.of(context).settings.arguments;
+    var state = Provider.of<CloudFirestore>(context, listen: false);
     return Scaffold(
       backgroundColor: const Color.fromRGBO(20, 20, 22, 1),
-      body: SafeArea(
-        top: false,
-        bottom: false,
+      body: SingleChildScrollView(
         child: Column(
           children: [
             mainAppBarAU(context, controllerSearch,
@@ -695,122 +700,511 @@ class _FeedState extends State<Feed> {
                     barrierDismissible: false,
                     context: context,
                     builder: (context) => mdUpload())),
-            Container(
-              height: 40,
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(vertical: 25, horizontal: 175),
-              child: Flex(
-                direction: Axis.horizontal,
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Flexible(
-                      flex: 7,
-                      child: Padding(
-                        padding: EdgeInsets.only(right: 15),
-                        child: Text('File filter set to:',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold)),
-                      )),
-                  Flexible(
-                    flex: 2,
-                    child: Flex(
-                        direction: Axis.vertical,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            StreamBuilder<Application>(
+                stream: FeedState(uidApp: data['uid']).getApp,
+                builder: (context, snapshot) {
+                  FirebaseFirestore.instance
+                      .collection('files')
+                      .doc(data['uid'])
+                      .collection('liked')
+                      .where('uidUser',
+                          isEqualTo: FirebaseAuth.instance.currentUser.uid)
+                      .get()
+                      .then((value) {
+                    if (value.docs.isNotEmpty) {
+                      if (mounted) {
+                        setState(() {
+                          liked = true;
+                        });
+                      }
+                    }
+                  });
+                  if (snapshot.hasData) {
+                    Application application = snapshot.data;
+                    return Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 200, vertical: 35),
+                      child: Column(
                         children: [
-                          Flexible(
-                            flex: 3,
-                            child: StreamBuilder<QuerySnapshot>(
-                                stream: FirebaseFirestore.instance
-                                    .collection('categories')
-                                    .snapshots(),
-                                builder: (BuildContext context,
-                                    AsyncSnapshot<QuerySnapshot> snapshot) {
-                                  if (!snapshot.hasData) {
-                                    return const Text('There is no expense');
-                                  }
-
-                                  return Container(
-                                    decoration: BoxDecoration(
-                                        color: Colors.transparent,
-                                        borderRadius:
-                                            BorderRadius.circular(10)),
-                                    child: DropdownButton(
-                                      value: filter,
-                                      dropdownColor:
-                                          const Color.fromRGBO(20, 20, 22, 1),
-                                      hint: const Text(
-                                        'Choose a filter',
-                                        style: TextStyle(color: Colors.white60),
-                                      ),
-                                      isDense: true,
-                                      borderRadius: const BorderRadius.all(
-                                          Radius.circular(14)),
-                                      underline: const SizedBox(),
-                                      style:
-                                          const TextStyle(color: Colors.white),
-                                      items: snapshot.data.docs
-                                          .map((DocumentSnapshot document) {
-                                        return DropdownMenuItem<String>(
-                                            value: document.get('uid'),
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 5),
-                                              child: Text(
-                                                document
-                                                    .get('name')['en']
-                                                    .toString(),
-                                              ),
-                                            ));
-                                      }).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          filter = value;
-                                        });
-                                      },
-                                    ),
-                                  );
-                                }),
-                          ),
-                          filter != null
-                              ? Flexible(
-                                  flex: 3,
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 5),
+                            width: double.infinity,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  height: 45,
+                                  width: 45,
                                   child: TextButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        filter = null;
-                                      });
-                                    },
-                                    child: const Text(
-                                      'Clear search engine',
-                                      style: TextStyle(
-                                          color:
-                                              Color.fromRGBO(119, 126, 144, 1),
-                                          fontSize: 13),
+                                      onPressed: () =>
+                                          Navigator.pushReplacementNamed(
+                                              context, '/feed'),
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                            MaterialStateProperty.all(
+                                                const Color.fromRGBO(
+                                                    53, 57, 69, 0.15)),
+                                        shape: MaterialStateProperty.all<
+                                                RoundedRectangleBorder>(
+                                            RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(25),
+                                        )),
+                                      ),
+                                      child: const Icon(
+                                        Icons.arrow_back,
+                                        color: Colors.white,
+                                        size: 28,
+                                      )),
+                                )
+                              ],
+                            ),
+                          ),
+                          Flex(
+                            direction: Axis.horizontal,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Flexible(
+                                flex: 3,
+                                child: CachedNetworkImage(
+                                  imageUrl: application.url['absolute'],
+                                  cacheManager: DefaultCacheManager(),
+                                  imageBuilder: (context, imageProvider) =>
+                                      Container(
+                                    width: 320,
+                                    height: 240,
+                                    decoration: BoxDecoration(
+                                      image: DecorationImage(
+                                        image: imageProvider,
+                                        fit: BoxFit.cover,
+                                      ),
+                                      borderRadius: BorderRadius.circular(25),
                                     ),
                                   ),
-                                )
-                              : const SizedBox()
-                        ]),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 100),
-                child: StreamProvider<List<Application>>.value(
-                  value: filter != null
-                      ? FeedState(uidCat: filter).getAllAppsFilter
-                      : FeedState().getAllApps,
-                  initialData: const [],
-                  child: const ListApp(),
-                ),
-              ),
-            ),
+                                  placeholderFadeInDuration:
+                                      const Duration(milliseconds: 500),
+                                  placeholder: (context, url) => Container(
+                                    height: 240,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(25),
+                                      color: Colors.white38.withOpacity(0.025),
+                                    ),
+                                    width: 320,
+                                    child: const Center(
+                                        child: SizedBox(
+                                      height: 75,
+                                      width: 75,
+                                      child: CircularProgressIndicator(),
+                                    )),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.error),
+                                ),
+                              ),
+                              Flexible(
+                                  flex: 5,
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 15, vertical: 10),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          application.title,
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        SizedBox(
+                                          width: 320,
+                                          child: Text(
+                                            application.description,
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 6,
+                                            style: const TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 17),
+                                          ),
+                                        ),
+                                        Container(
+                                          margin:
+                                              const EdgeInsets.only(top: 10),
+                                          height: 45,
+                                          width: 320,
+                                          child: Row(
+                                            children: [
+                                              SizedBox(
+                                                height: 45,
+                                                width: 45,
+                                                child: TextButton(
+                                                    onPressed: () {
+                                                      liked
+                                                          ? state
+                                                              .removeLikePost(
+                                                                  context,
+                                                                  application
+                                                                      .uidFile)
+                                                              .whenComplete(
+                                                                  () =>
+                                                                      setState(
+                                                                          () {
+                                                                        liked =
+                                                                            false;
+                                                                      }))
+                                                          : state
+                                                              .createLikePost(
+                                                                  context,
+                                                                  application
+                                                                      .uidFile)
+                                                              .whenComplete(
+                                                                  () =>
+                                                                      setState(
+                                                                          () {
+                                                                        liked =
+                                                                            true;
+                                                                      }));
+                                                    },
+                                                    style: ButtonStyle(
+                                                      backgroundColor:
+                                                          MaterialStateProperty
+                                                              .all(liked
+                                                                  ? Colors
+                                                                      .red[400]
+                                                                      .withOpacity(
+                                                                          0.15)
+                                                                  : const Color
+                                                                          .fromRGBO(
+                                                                      53,
+                                                                      57,
+                                                                      69,
+                                                                      0.15)),
+                                                      shape: MaterialStateProperty.all<
+                                                              RoundedRectangleBorder>(
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(25),
+                                                      )),
+                                                    ),
+                                                    child: Icon(
+                                                      Icons
+                                                          .favorite_border_rounded,
+                                                      size: 27,
+                                                      color: liked
+                                                          ? Colors.red[400]
+                                                          : const Color
+                                                                  .fromRGBO(
+                                                              53, 57, 69, 1),
+                                                    )),
+                                              )
+                                            ],
+                                          ),
+                                        )
+                                      ],
+                                    ),
+                                  ))
+                            ],
+                          ),
+                          Container(
+                            width: 660,
+                            height: 75,
+                            margin: const EdgeInsets.only(top: 15),
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                            decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(15),
+                                color: const Color.fromRGBO(53, 57, 69, 0.15)),
+                            child: StreamBuilder<UserData>(
+                                stream: FeedState(uidUser: application.author)
+                                    .getUser,
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    UserData userData = snapshot.data;
+                                    return SizedBox(
+                                      height: 45,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          SizedBox(
+                                            width: 175,
+                                            height: 45,
+                                            child: TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pushNamed(
+                                                      context, '/user',
+                                                      arguments: {
+                                                    'uid': userData.uid
+                                                  }),
+                                              style: ButtonStyle(
+                                                shape: MaterialStateProperty.all<
+                                                        RoundedRectangleBorder>(
+                                                    RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(25),
+                                                )),
+                                                padding:
+                                                    MaterialStateProperty.all(
+                                                        EdgeInsets.zero),
+                                              ),
+                                              child: SizedBox(
+                                                width: double.infinity,
+                                                height: double.infinity,
+                                                child: Row(
+                                                  children: [
+                                                    userData.photo != null &&
+                                                            userData.photo != ''
+                                                        ? CachedNetworkImage(
+                                                            imageUrl:
+                                                                userData.photo,
+                                                            cacheManager:
+                                                                DefaultCacheManager(),
+                                                            imageBuilder: (context,
+                                                                    imageProvider) =>
+                                                                Container(
+                                                              width: 45,
+                                                              height: 45,
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                image:
+                                                                    DecorationImage(
+                                                                  image:
+                                                                      imageProvider,
+                                                                  fit: BoxFit
+                                                                      .cover,
+                                                                ),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            40),
+                                                              ),
+                                                            ),
+                                                            placeholderFadeInDuration:
+                                                                const Duration(
+                                                                    milliseconds:
+                                                                        500),
+                                                            placeholder:
+                                                                (context,
+                                                                        url) =>
+                                                                    Container(
+                                                              height: 45,
+                                                              width: 45,
+                                                              decoration: BoxDecoration(
+                                                                  color: Colors
+                                                                      .white38
+                                                                      .withOpacity(
+                                                                          0.7),
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              20)),
+                                                            ),
+                                                            errorWidget: (context,
+                                                                    url,
+                                                                    error) =>
+                                                                const Icon(Icons
+                                                                    .error),
+                                                          )
+                                                        : ClipRRect(
+                                                            child: Container(
+                                                              width: 45,
+                                                              height: 45,
+                                                              decoration: BoxDecoration(
+                                                                  color: const Color
+                                                                          .fromRGBO(
+                                                                      16,
+                                                                      184,
+                                                                      120,
+                                                                      0.45),
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              45)),
+                                                              child: Center(
+                                                                child: Text(
+                                                                    userData
+                                                                        .name[0]
+                                                                        .toUpperCase(),
+                                                                    style: const TextStyle(
+                                                                        fontSize:
+                                                                            17,
+                                                                        fontWeight:
+                                                                            FontWeight
+                                                                                .bold,
+                                                                        color: Colors
+                                                                            .white)),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                    Container(
+                                                      margin:
+                                                          const EdgeInsets.only(
+                                                              left: 10),
+                                                      width: 100,
+                                                      child: Text(userData.name,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style:
+                                                              const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
+                                                                  fontSize:
+                                                                      15)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            child: userData.uid ==
+                                                    FirebaseAuth.instance
+                                                        .currentUser.uid
+                                                ? const Text('(YOU)',
+                                                    style: TextStyle(
+                                                        color: Color.fromRGBO(
+                                                            69, 178, 107, 1),
+                                                        fontSize: 13))
+                                                : Row(
+                                                    children: [
+                                                      // Container(
+                                                      //   margin: const EdgeInsets
+                                                      //       .only(right: 15),
+                                                      //   height: 45,
+                                                      //   width: 45,
+                                                      //   child: TextButton(
+                                                      //       onPressed: () {
+                                                      //         setState(() {
+                                                      //           listen =
+                                                      //               !listen;
+                                                      //         });
+                                                      //       },
+                                                      //       style: ButtonStyle(
+                                                      //         backgroundColor: MaterialStateProperty.all(listen
+                                                      //             ? Colors
+                                                      //                 .red[400]
+                                                      //                 .withOpacity(
+                                                      //                     0.15)
+                                                      //             : const Color
+                                                      //                     .fromRGBO(
+                                                      //                 53,
+                                                      //                 57,
+                                                      //                 69,
+                                                      //                 0.15)),
+                                                      //         shape: MaterialStateProperty.all<
+                                                      //                 RoundedRectangleBorder>(
+                                                      //             RoundedRectangleBorder(
+                                                      //           borderRadius:
+                                                      //               BorderRadius
+                                                      //                   .circular(
+                                                      //                       25),
+                                                      //         )),
+                                                      //       ),
+                                                      //       child: Icon(
+                                                      //         listen
+                                                      //             ? Icons
+                                                      //                 .notifications_off_rounded
+                                                      //             : Icons
+                                                      //                 .notifications,
+                                                      //         size: 27,
+                                                      //         color: listen
+                                                      //             ? Colors
+                                                      //                 .red[400]
+                                                      //             : const Color
+                                                      //                     .fromRGBO(
+                                                      //                 53,
+                                                      //                 57,
+                                                      //                 69,
+                                                      //                 1),
+                                                      //       )),
+                                                      // ),
+                                                      SizedBox(
+                                                        height: 45,
+                                                        width: 45,
+                                                        child: TextButton(
+                                                            onPressed: () {
+                                                              setState(() {
+                                                                follow =
+                                                                    !follow;
+                                                              });
+                                                            },
+                                                            style: ButtonStyle(
+                                                              backgroundColor: MaterialStateProperty.all(follow
+                                                                  ? Colors
+                                                                      .red[400]
+                                                                      .withOpacity(
+                                                                          0.15)
+                                                                  : const Color
+                                                                          .fromRGBO(
+                                                                      53,
+                                                                      57,
+                                                                      69,
+                                                                      0.15)),
+                                                              shape: MaterialStateProperty.all<
+                                                                      RoundedRectangleBorder>(
+                                                                  RoundedRectangleBorder(
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            25),
+                                                              )),
+                                                            ),
+                                                            child: Icon(
+                                                              follow
+                                                                  ? Icons
+                                                                      .person_remove_alt_1_rounded
+                                                                  : Icons
+                                                                      .person_add_alt_1_rounded,
+                                                              size: 27,
+                                                              color: follow
+                                                                  ? Colors
+                                                                      .red[400]
+                                                                  : const Color
+                                                                          .fromRGBO(
+                                                                      53,
+                                                                      57,
+                                                                      69,
+                                                                      1),
+                                                            )),
+                                                      )
+                                                    ],
+                                                  ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  } else {
+                                    return Container(
+                                      margin: const EdgeInsets.only(top: 10),
+                                      height: 40,
+                                      width: 75,
+                                      decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          color: Colors.white38
+                                              .withOpacity(0.025)),
+                                    );
+                                  }
+                                }),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    return Container(
+                      height: 35,
+                      width: 50,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+                          color: Colors.white38.withOpacity(0.05)),
+                    );
+                  }
+                }),
           ],
         ),
       ),

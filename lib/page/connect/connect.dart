@@ -1,16 +1,17 @@
-// ignore_for_file: unused_local_variable, avoid_print
+// ignore_for_file: unused_local_variable, avoid_print, avoid_web_libraries_in_flutter
 
 import 'dart:html';
 import 'dart:typed_data';
 
-import 'package:clever/utils/database/database.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:clever/utils/service/database/database.dart';
 import 'package:clever/utils/widget/appbar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_dropzone/flutter_dropzone.dart';
-import 'package:flutter_multi_formatter/formatters/phone_input_formatter.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
@@ -27,11 +28,12 @@ class Connect extends StatefulWidget {
 }
 
 class _ConnectState extends State<Connect> {
-  DropzoneViewController controller;
+  DropzoneViewController controllerEditDrop;
   TextEditingController controllerName = TextEditingController();
   bool highlighted = false,
       errorEnterName = false,
-      errorEnterNameLenght = false;
+      errorEnterNameLenght = false,
+      upload = false;
   String photo;
   firebase_storage.FirebaseStorage fs =
       firebase_storage.FirebaseStorage.instance;
@@ -56,34 +58,25 @@ class _ConnectState extends State<Connect> {
     super.dispose();
   }
 
-  upload() async {
-    String uidUser = FirebaseAuth.instance.currentUser.uid;
-    String time = DateTime.now().toUtc().toString();
+  uploadFileFunc(dynamic event) async {
+    setState(() {
+      upload = true;
+    });
+
+    final bytes = await controllerEditDrop.getFileData(event);
     final String uid = const Uuid().v1();
-    InputElement inputElement = FileUploadInputElement()..accept = 'image/*';
-    inputElement.click();
-    inputElement.onChange.listen((event) async {
-      final file = inputElement.files.first;
-      final reader = FileReader();
-      reader.readAsDataUrl(file);
-      var state = Provider.of<CloudFirestore>(context, listen: false);
-      FilePickerResult result = await FilePicker.platform.pickFiles();
-      if (result != null) {
-        Uint8List file = result.files.first.bytes;
-        var snapshot = await fs
-            .ref()
-            .child('files')
-            .child('avatars')
-            .child(uid)
-            .putData(file);
-        await snapshot.ref.getDownloadURL().then((value) {
-          setState(() {
-            photo = value.toString();
-          });
-        });
-      } else {
-        print('No Path Received');
-      }
+
+    var snapshot = await fs
+        .ref()
+        .child('files')
+        .child('avatars')
+        .child(uid)
+        .putData(bytes);
+    await snapshot.ref.getDownloadURL().then((value) {
+      setState(() {
+        photo = value.toString();
+        upload = false;
+      });
     });
   }
 
@@ -119,70 +112,143 @@ class _ConnectState extends State<Connect> {
                       children: [
                         Row(
                           children: [
-                            GestureDetector(
-                              onTap: () => upload(),
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 10),
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(50),
-                                    color: highlighted
-                                        ? const Color.fromRGBO(69, 178, 107, 1)
-                                        : const Color.fromRGBO(
-                                            119, 126, 144, 1)),
-                                height: 100,
-                                width: 100,
-                                child: Stack(
-                                  children: [
-                                    DropzoneView(
-                                      operation: DragOperation.copy,
-                                      cursor: CursorType.pointer,
-                                      onCreated: (ctrl) => controller = ctrl,
-                                      onHover: () {
-                                        setState(() => highlighted = true);
-                                      },
-                                      onLeave: () {
-                                        setState(() => highlighted = false);
-                                      },
-                                      onDrop: (ev) async {
-                                        var state = Provider.of<CloudFirestore>(
-                                            context,
-                                            listen: false);
-                                        final String uid = const Uuid().v1();
-                                        setState(() {
-                                          highlighted = false;
-                                        });
-                                        final bytes =
-                                            await controller.getFileData(ev);
-                                        var snapshot = await fs
-                                            .ref()
-                                            .child('files')
-                                            .child('avatars')
-                                            .child(uid)
-                                            .putData(bytes);
-                                        await snapshot.ref
-                                            .getDownloadURL()
-                                            .then((value) {
-                                          setState(() {
-                                            photo = value.toString();
-                                          });
-                                        });
-                                      },
-                                      onDropMultiple: (ev) async {
-                                        print('Zone 1 drop multiple: $ev');
-                                      },
+                            upload
+                                ? Container(
+                                    margin: const EdgeInsets.only(right: 10),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(55),
+                                      color: Colors.white38.withOpacity(0.7),
                                     ),
-                                    const Align(
-                                      alignment: Alignment.center,
-                                      child: Icon(
-                                        Icons.file_upload_outlined,
-                                        size: 28,
-                                        color: Colors.white60,
+                                    height: 100,
+                                    width: 100,
+                                    child: const Center(
+                                      child: SizedBox(
+                                        height: 25,
+                                        width: 25,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                        ),
                                       ),
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ),
+                                    ),
+                                  )
+                                : photo != null && photo != ''
+                                    ? CachedNetworkImage(
+                                        imageUrl: photo,
+                                        cacheManager: DefaultCacheManager(),
+                                        imageBuilder:
+                                            (context, imageProvider) =>
+                                                Container(
+                                          width: 100,
+                                          height: 100,
+                                          decoration: BoxDecoration(
+                                            image: DecorationImage(
+                                              image: imageProvider,
+                                              fit: BoxFit.cover,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(100),
+                                          ),
+                                        ),
+                                        placeholderFadeInDuration:
+                                            const Duration(milliseconds: 500),
+                                        placeholder: (context, url) =>
+                                            Container(
+                                          height: 100,
+                                          width: 100,
+                                          decoration: BoxDecoration(
+                                              color: Colors.white38
+                                                  .withOpacity(0.7),
+                                              borderRadius:
+                                                  BorderRadius.circular(100)),
+                                        ),
+                                        errorWidget: (context, url, error) =>
+                                            const Icon(Icons.error),
+                                      )
+                                    : GestureDetector(
+                                        onTap: () async {
+                                          final events =
+                                              await controllerEditDrop
+                                                  .pickFiles(
+                                                      multiple: false,
+                                                      mime: [
+                                                'image/png',
+                                                'image/jpeg'
+                                              ]);
+                                          if (events.isEmpty) return;
+                                          uploadFileFunc(events.first);
+                                        },
+                                        child: Container(
+                                          margin:
+                                              const EdgeInsets.only(right: 10),
+                                          decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(50),
+                                              color: highlighted
+                                                  ? const Color.fromRGBO(
+                                                      69, 178, 107, 1)
+                                                  : const Color.fromRGBO(
+                                                      119, 126, 144, 1)),
+                                          height: 100,
+                                          width: 100,
+                                          child: Stack(
+                                            children: [
+                                              DropzoneView(
+                                                operation: DragOperation.copy,
+                                                cursor: CursorType.pointer,
+                                                onCreated: (ctrl) =>
+                                                    controllerEditDrop = ctrl,
+                                                onHover: () {
+                                                  setState(
+                                                      () => highlighted = true);
+                                                },
+                                                onLeave: () {
+                                                  setState(() =>
+                                                      highlighted = false);
+                                                },
+                                                onDrop: (ev) async {
+                                                  var state = Provider.of<
+                                                          CloudFirestore>(
+                                                      context,
+                                                      listen: false);
+                                                  final String uid =
+                                                      const Uuid().v1();
+                                                  setState(() {
+                                                    highlighted = false;
+                                                  });
+                                                  final bytes =
+                                                      await controllerEditDrop
+                                                          .getFileData(ev);
+                                                  var snapshot = await fs
+                                                      .ref()
+                                                      .child('files')
+                                                      .child('avatars')
+                                                      .child(uid)
+                                                      .putData(bytes);
+                                                  await snapshot.ref
+                                                      .getDownloadURL()
+                                                      .then((value) {
+                                                    setState(() {
+                                                      photo = value.toString();
+                                                    });
+                                                  });
+                                                },
+                                                onDropMultiple: (ev) async {
+                                                  print(
+                                                      'Zone 1 drop multiple: $ev');
+                                                },
+                                              ),
+                                              const Align(
+                                                alignment: Alignment.center,
+                                                child: Icon(
+                                                  Icons.file_upload_outlined,
+                                                  size: 28,
+                                                  color: Colors.white60,
+                                                ),
+                                              )
+                                            ],
+                                          ),
+                                        ),
+                                      ),
                             Flexible(
                               flex: 10,
                               child: Column(

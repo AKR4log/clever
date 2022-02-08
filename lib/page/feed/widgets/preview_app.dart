@@ -1,7 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:clever/page/product/product.dart';
 import 'package:clever/utils/mdls/app/app.dart';
+import 'package:clever/utils/mdls/app/cat.dart';
 import 'package:clever/utils/mdls/user/user.dart';
-import 'package:clever/utils/state/feed_state.dart';
+import 'package:clever/utils/service/state/feed_state.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
@@ -17,43 +22,127 @@ class _PreviewAppState extends State<PreviewApp> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      child: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: CachedNetworkImage(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 5),
+      child: TextButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/product',
+              arguments: {'uid': widget.application.uidFile});
+        },
+        style: ButtonStyle(
+          shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+              RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(25),
+          )),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CachedNetworkImage(
               imageUrl: widget.application.url['absolute'],
               cacheManager: DefaultCacheManager(),
-              imageBuilder: (context, imageProvider) => Container(
-                width: 320,
-                height: 240,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: imageProvider,
-                    fit: BoxFit.cover,
+              imageBuilder: (context, imageProvider) => Stack(
+                children: [
+                  Align(
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 320,
+                      height: 240,
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: imageProvider,
+                          fit: BoxFit.cover,
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 15, vertical: 15),
+                      child: StreamBuilder<Cat>(
+                          stream: FeedState(
+                                  uidCat: widget.application.categories[0])
+                              .getCat,
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              Cat cat = snapshot.data;
+                              return Row(
+                                children: [
+                                  Container(
+                                    margin: const EdgeInsets.only(right: 10),
+                                    height: 35,
+                                    child: TextButton(
+                                      child: Text(
+                                        cat.name['en'],
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                      ),
+                                      style: ButtonStyle(
+                                        backgroundColor:
+                                            MaterialStateProperty.all(
+                                                const Color.fromRGBO(
+                                                    69, 178, 107, 0.55)),
+                                        padding: MaterialStateProperty.all(
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 15)),
+                                        shape: MaterialStateProperty.all<
+                                                RoundedRectangleBorder>(
+                                            RoundedRectangleBorder(
+                                          side: const BorderSide(
+                                              color: Color.fromRGBO(
+                                                  69, 178, 107, 0.85),
+                                              width: 1.25),
+                                          borderRadius:
+                                              BorderRadius.circular(25),
+                                        )),
+                                      ),
+                                      onPressed: () {},
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else {
+                              return Container(
+                                height: 35,
+                                width: 50,
+                                decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(25),
+                                    color: Colors.white38.withOpacity(0.05)),
+                              );
+                            }
+                          }),
+                    ),
+                  )
+                ],
               ),
               placeholderFadeInDuration: const Duration(milliseconds: 500),
-              placeholder: (context, url) => const SizedBox(
-                height: 100,
-                width: 100,
-                child: CircularProgressIndicator(),
+              placeholder: (context, url) => Container(
+                height: 240,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  color: Colors.white38.withOpacity(0.025),
+                ),
+                width: 320,
+                child: const Center(
+                    child: SizedBox(
+                  height: 75,
+                  width: 75,
+                  child: CircularProgressIndicator(),
+                )),
               ),
               errorWidget: (context, url, error) => const Icon(Icons.error),
             ),
-          ),
-          StreamBuilder<UserData>(
-              stream: FeedState(uidUser: widget.application.author).getUser,
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  UserData userData = snapshot.data;
-
-                  return SizedBox(
-                    height: 40,
-                    child: TextButton(
+            StreamBuilder<UserData>(
+                stream: FeedState(uidUser: widget.application.author).getUser,
+                builder: (context, snapshot) {
+                  if (snapshot.hasData) {
+                    UserData userData = snapshot.data;
+                    return Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      height: 40,
                       child: Row(
                         children: [
                           userData.photo != null && userData.photo != ''
@@ -114,20 +203,20 @@ class _PreviewAppState extends State<PreviewApp> {
                           ),
                         ],
                       ),
-                      onPressed: () {},
-                    ),
-                  );
-                } else {
-                  return Container(
-                    height: 40,
-                    width: 100,
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        color: Colors.white38.withOpacity(0.05)),
-                  );
-                }
-              }),
-        ],
+                    );
+                  } else {
+                    return Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      height: 40,
+                      width: 75,
+                      decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white38.withOpacity(0.025)),
+                    );
+                  }
+                }),
+          ],
+        ),
       ),
     );
   }

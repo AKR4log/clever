@@ -1,11 +1,14 @@
 import 'package:clever/page/connect/connect.dart';
 import 'package:clever/page/feed/feed.dart';
-import 'package:clever/page/home.dart';
 import 'package:clever/page/connect/login/login.dart';
+import 'package:clever/page/product/product.dart';
 import 'package:clever/page/splash.dart';
-import 'package:clever/utils/database/database.dart';
-import 'package:clever/utils/state/app_state.dart';
-import 'package:clever/utils/state/feed_state.dart';
+import 'package:clever/page/store/store.dart';
+import 'package:clever/page/user/profile.dart';
+import 'package:clever/page/works/works.dart';
+import 'package:clever/utils/service/database/database.dart';
+import 'package:clever/utils/service/state/app_state.dart';
+import 'package:clever/utils/service/state/feed_state.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -32,14 +35,30 @@ class MyApp extends StatelessWidget {
           theme: ThemeData(
             fontFamily: 'DMSans',
           ),
-          initialRoute: SplashPage.routeName,
+          initialRoute: '/splash',
           routes: {
-            SplashPage.routeName: (context) => const SplashPage(),
-            Home.routeName: (context) => const Home(),
-            Feed.routeName: (context) => const Feed(),
-            Login.routeName: (context) => const Login(),
-            Connect.routeName: (context) => const Connect(),
+            '/splash': (context) => const SplashPage(),
+            '/feed': (context) => const Feed(),
+            '/login': (context) => const Login(),
+            '/connect': (context) => const Connect(),
+            '/product': (context) => const Product(),
+            '/user': (context) => const Profile(),
+            '/store': (context) => const Store(),
+            '/how_it_works': (context) => const Works(),
           },
+          // onGenerateRoute: (settings) {
+          // final path = Uri.parse(settings.name);
+          // final postID = path.queryParameters['id'];
+          // print(postID);
+          // switch (path.queryParameters['id']) {
+          //   case '4545':
+          // return Navigator.pushReplacementNamed(context, '/home',
+          //     arguments: {'id': 1234});
+          //   default:
+          //     return null;
+          // }
+          // },
+          debugShowCheckedModeBanner: false,
           title: 'Case Clever',
         ));
   }

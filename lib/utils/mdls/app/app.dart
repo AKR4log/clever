@@ -10,6 +10,7 @@ class Application {
   final String uidFile;
   final String author;
   final Map url;
+  final categories;
 
   Application(
       {this.animated,
@@ -20,5 +21,6 @@ class Application {
       this.state,
       this.author,
       this.url,
+      this.categories,
       this.public});
 }

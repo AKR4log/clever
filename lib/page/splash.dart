@@ -1,8 +1,6 @@
 import 'package:clever/page/feed/feed.dart';
-import 'package:clever/utils/database/database.dart';
 import 'package:clever/utils/enum/enum.dart';
-import 'package:clever/page/home.dart';
-import 'package:clever/page/connect/login/login.dart';
+import 'package:clever/utils/service/database/database.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +47,7 @@ class _SplashPageState extends State<SplashPage> {
       backgroundColor: const Color.fromRGBO(20, 20, 22, 1),
       body: state.authStatus == AuthStatus.NOT_DETERMINED
           ? _body()
-          : const Home(),
+          : const Feed(),
     );
   }
 }
